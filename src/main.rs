@@ -14,7 +14,7 @@ use bevy::{
 
 fn main() {
     fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
-        const WIDTH: usize = 24;
+        const WIDTH: usize = 32;
 
         // spawn camera
         commands.spawn(Camera2dBundle {
@@ -26,7 +26,7 @@ fn main() {
         });
 
         // create texture
-        let img = image_function::<WIDTH, 16>(|x, y| [x / 24.0, y / 16.0, 0.0, 1.0]);
+        let img = image_function::<WIDTH, 16>(|x, y| [x / 32.0, y / 16.0, 0.0, 1.0]);
         let image = images.add(img);
 
         commands.spawn(SpriteBundle {
