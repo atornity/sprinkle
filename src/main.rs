@@ -5,24 +5,28 @@ use bevy::{
     math::Vec3Swizzles,
     prelude::*,
     render::{
-        render_resource::{Extent3d, TextureDimension, TextureFormat},
-        texture::{BevyDefault, ImageType, TextureFormatPixelInfo},
+        render_resource::{
+            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
+        },
+        texture::{BevyDefault, ImageSampler, ImageType, TextureFormatPixelInfo},
     },
 };
 
 fn main() {
     fn setup(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+        const WIDTH: usize = 24;
+
         // spawn camera
         commands.spawn(Camera2dBundle {
             projection: OrthographicProjection {
-                scale: 1.0,
+                scale: 0.1,
                 ..Default::default()
             },
             ..Default::default()
         });
 
         // create texture
-        let img = image_function::<16, 16>(|x, y| [x / 16.0, y / 16.0, 0.0, 1.0]);
+        let img = image_function::<WIDTH, 16>(|x, y| [x / 24.0, y / 16.0, 0.0, 1.0]);
         let image = images.add(img);
 
         commands.spawn(SpriteBundle {
@@ -43,8 +47,8 @@ fn main() {
 
         commands.insert_resource(Canvas {
             image,
-            cursor_pos: Err(Vec2::ZERO),
-            size: Vec2::new(16.0, 16.0),
+            cursor_position: Err(Vec2::ZERO),
+            size: Vec2::new(WIDTH as f32, 16.0),
         });
     }
 
@@ -103,11 +107,15 @@ fn main() {
                 let pos = pos + canvas.size / 2.0;
                 let (x, y, w, h) = (pos.x, pos.y, canvas.size.x, canvas.size.y);
 
-                println!("x: {}, y: {}", x, y);
+                let i = pos.x as u32 + pos.y as u32 * canvas.size.x as u32;
+
+                println!("x: {}, y: {} i: {}", x, y, i);
 
                 if (0.0..w).contains(&x) && (0.0..h).contains(&y) {
+                    canvas.cursor_position = Ok(pos);
                     sprite.color = Color::WHITE;
                 } else {
+                    canvas.cursor_position = Err(pos);
                     sprite.color = Color::RED;
                 }
             }
@@ -119,14 +127,34 @@ fn main() {
         }
     }
 
+    fn paint(
+        canvas: Res<Canvas>,
+        input: Res<Input<MouseButton>>,
+        mut images: ResMut<Assets<Image>>,
+    ) {
+        if input.pressed(MouseButton::Left) {
+            let image = images.get_mut(&canvas.image).unwrap();
+
+            // TODO: only draw when cursor moved
+            if let Ok(pos) = canvas.cursor_position {
+                let i = pos.x as u32 + pos.y as u32 * canvas.size.x as u32;
+                let i = i as usize * 4;
+
+                image.data[i] = 255;
+                image.data[i + 1] = 255;
+                image.data[i + 2] = 255;
+            }
+        }
+    }
+
     App::new()
         .add_plugins(DefaultPlugins)
         .add_systems(Startup, setup)
+        .add_systems(PreUpdate, (zoom_camera, move_camera))
         .add_systems(
-            PreUpdate,
-            ((zoom_camera, move_camera), apply_system_buffers).chain(),
+            PostUpdate,
+            (apply_system_buffers, move_cursor, paint).chain(),
         )
-        .add_systems(PostUpdate, move_cursor)
         .run();
 }
 
@@ -139,8 +167,8 @@ where
     let mut buffer = [0; WIDTH * HEIGHT * 4];
 
     for (i, rgba) in &mut buffer.array_chunks_mut::<4>().enumerate() {
-        let x = i as f32 % 16.0;
-        let y = i as f32 / 16.0;
+        let x = i as f32 % WIDTH as f32;
+        let y = i as f32 / WIDTH as f32;
 
         let mut col = [0; 4];
         for (i, c) in f(x, y).iter().enumerate() {
@@ -150,22 +178,31 @@ where
         *rgba = col;
     }
 
-    Image::new(
-        Extent3d {
-            width: WIDTH as u32,
-            height: HEIGHT as u32,
-            ..Default::default()
+    Image {
+        data: Vec::from(buffer),
+        sampler_descriptor: ImageSampler::nearest(),
+        texture_descriptor: TextureDescriptor {
+            label: None,
+            size: Extent3d {
+                width: WIDTH as u32,
+                height: HEIGHT as u32,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            format: TextureFormat::Rgba8UnormSrgb,
+            usage: TextureUsages::COPY_DST | TextureUsages::TEXTURE_BINDING,
+            view_formats: &[],
         },
-        TextureDimension::D2,
-        Vec::from(buffer),
-        TextureFormat::Rgba8UnormSrgb,
-    )
+        texture_view_descriptor: None,
+    }
 }
 
 #[derive(Resource)]
 struct Canvas {
     size: Vec2,
-    cursor_pos: Result<Vec2, Vec2>,
+    cursor_position: Result<Vec2, Vec2>,
     image: Handle<Image>,
 }
 
