@@ -4,6 +4,7 @@ use std::ops::Mul;
 
 use bevy::{prelude::*, utils::HashMap};
 
+pub mod canvas;
 pub mod command;
 pub mod layer;
 pub mod timeline;
@@ -34,13 +35,7 @@ impl Layer {
         if self.frames.contains_key(&frame) {
             return None;
         }
-        let image = images.add(Image {
-            data: (0..(self.height * self.width))
-                .map(|_| clear.as_rgba_u8())
-                .collect::<Vec<[u8; 4]>>()
-                .concat(),
-            ..default_image(self.width, self.height)
-        });
+        let image = images.add(image(self.width, self.height, clear));
         self.insert_frame(frame, image)
     }
 
@@ -133,7 +128,7 @@ impl Timeline {
     }
 }
 
-pub fn default_image(width: u32, height: u32) -> Image {
+pub fn image(width: u32, height: u32, color: Color) -> Image {
     use bevy::render::{
         render_resource::{
             Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
@@ -141,7 +136,11 @@ pub fn default_image(width: u32, height: u32) -> Image {
         texture::ImageSampler,
     };
     Image {
-        data: vec![255; (width * height * 4) as usize],
+        data: vec![255; (width * height) as usize]
+            .into_iter()
+            .map(|_| color.as_rgba_u8())
+            .collect::<Vec<_>>()
+            .concat(),
         sampler_descriptor: ImageSampler::nearest(),
         texture_descriptor: TextureDescriptor {
             label: None,
