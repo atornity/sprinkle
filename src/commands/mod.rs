@@ -5,17 +5,20 @@ use bevy::prelude::*;
 use crate::{
     canvas::{Canvas, PaintTool},
     layer::Layer,
-    Draw, MyState,
+    Draw, OperationState,
 };
 
+pub mod fill;
 pub mod paint;
 mod undo;
 
 use self::{
+    fill::Fill,
     paint::{Paint, StopPaint},
     undo::{Redo, Undo},
 };
 
+// TODO: change name of this enum
 pub enum CommandType {
     Command(Box<dyn CanvasCommand>),
     Operation(Box<dyn CanvasOperation>),
@@ -76,11 +79,15 @@ impl CanvasCommands {
         self.queue.push_back(command);
     }
 
-    pub fn start_painting(&mut self, _color: Color) {
-        self.add(CommandType::operation(Paint::new()))
+    pub fn start_painting(&mut self, color: Color) {
+        self.add(CommandType::operation(Paint::new(color)))
     }
     pub fn stop_painting(&mut self) {
         self.add(CommandType::command(StopPaint))
+    }
+
+    pub fn fill(&mut self, color: Color) {
+        self.add(CommandType::command(Fill::new(color)))
     }
 
     fn call(&mut self, world: &mut World) {

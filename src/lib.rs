@@ -1,14 +1,15 @@
-#![feature(drain_filter)]
+#![feature(drain_filter, array_chunks)]
 
 use bevy::prelude::*;
 
+pub mod camera;
 pub mod canvas;
 pub mod commands;
 pub mod layer;
 pub mod timeline;
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum MyState {
+pub enum OperationState {
     Painting,
     #[default]
     Idle,
@@ -48,6 +49,7 @@ pub fn image(width: u32, height: u32, color: Color) -> Image {
 
 pub trait Draw {
     fn paint(&mut self, pos: Vec2, color: Color);
+    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8];
 }
 
 impl Draw for Image {
@@ -55,7 +57,6 @@ impl Draw for Image {
     /// if the position is outside the bounds
     fn paint(&mut self, pos: Vec2, color: Color) {
         let i = pos.x as u32 + pos.y as u32 * self.size().x as u32;
-
         let i = i as usize * 4;
 
         let color = color.as_rgba_u8();
@@ -64,5 +65,12 @@ impl Draw for Image {
         self.data[i + 1] = color[1];
         self.data[i + 2] = color[2];
         self.data[i + 3] = color[3];
+    }
+
+    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8] {
+        let i = pos.x as u32 + pos.y as u32 * self.size().x as u32;
+        let i = i as usize * 4;
+
+        &mut self.data[i..(i + 4)]
     }
 }
