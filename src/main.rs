@@ -1,23 +1,15 @@
 #![feature(generic_const_exprs, array_chunks, exclusive_range_pattern)]
 
-use core::time;
-
 use bevy::{
     input::mouse::{MouseMotion, MouseWheel},
-    math::Vec3Swizzles,
     prelude::*,
-    render::{
-        render_resource::{
-            Extent3d, TextureDescriptor, TextureDimension, TextureFormat, TextureUsages,
-        },
-        texture::{BevyDefault, ImageSampler, ImageType, TextureFormatPixelInfo},
-    },
 };
 use sprinkle::{
-    canvas::{process_cursor_position, process_painting, Canvas, PaintTool},
-    command::{process_commands, CanvasCommands},
+    canvas::{process_cursor_position, Canvas, PaintTool},
+    commands::{paint::canvas_paint, process_commands, CanvasCommands},
     image,
     layer::{Layer, LayerBundle},
+    MyState,
 };
 
 fn main() {
@@ -278,15 +270,14 @@ fn main() {
 
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_state::<MyState>()
         .init_resource::<PaintTool>()
         .init_resource::<CanvasCommands>()
         .add_systems(Startup, setup_basic)
         .add_systems(Update, (process_cursor_position, paint))
         .add_systems(Update, (move_camera, zoom_camera))
-        .add_systems(
-            PostUpdate,
-            (process_painting, process_commands, undo, redo).chain(),
-        )
+        .add_systems(Update, canvas_paint.run_if(in_state(MyState::Painting)))
+        .add_systems(PostUpdate, (process_commands, undo).chain())
         .run();
 }
 
@@ -331,30 +322,18 @@ fn setup_basic(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     commands.insert_resource(Canvas::new(16, 16, layer_id));
 }
 
-fn paint(mut paint_tool: ResMut<PaintTool>, input: Res<Input<MouseButton>>) {
+fn paint(mut canvas_commands: ResMut<CanvasCommands>, input: Res<Input<MouseButton>>) {
     if input.just_pressed(MouseButton::Left) {
-        paint_tool.start_painting(Color::BEIGE);
+        canvas_commands.start_painting(Color::BEIGE);
     } else if input.just_released(MouseButton::Left) {
-        paint_tool.stop_painting();
+        canvas_commands.stop_painting();
     }
 }
 
-fn undo(world: &mut World) {
-    world.resource_scope(|world, mut canvas_commands: Mut<CanvasCommands>| {
-        world.resource_scope(|world, input: Mut<Input<MouseButton>>| {
-            if input.just_pressed(MouseButton::Right) {
-                canvas_commands.undo(world);
-            }
-        });
-    });
-}
-
-fn redo(world: &mut World) {
-    world.resource_scope(|world, mut canvas_commands: Mut<CanvasCommands>| {
-        world.resource_scope(|world, input: Mut<Input<MouseButton>>| {
-            if input.just_pressed(MouseButton::Middle) {
-                canvas_commands.redo(world);
-            }
-        });
-    });
+fn undo(mut canvas_commands: ResMut<CanvasCommands>, input: Res<Input<KeyCode>>) {
+    if input.just_pressed(KeyCode::Comma) {
+        canvas_commands.undo()
+    } else if input.just_pressed(KeyCode::Period) {
+        canvas_commands.redo()
+    }
 }

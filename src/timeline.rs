@@ -20,7 +20,7 @@ impl Timeline {
         Some(layer)
     }
 
-    pub fn add_layer(&mut self, commands: &mut Commands) -> Entity {
+    pub fn add_layer(&mut self, _commands: &mut Commands) -> Entity {
         todo!()
     }
 }
