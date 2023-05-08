@@ -51,6 +51,7 @@ impl CommandType {
     }
 }
 
+/// a command that can be undone and redone
 pub trait CanvasOperation: Send + Sync {
     fn name(&self) -> &'static str;
 
@@ -58,9 +59,14 @@ pub trait CanvasOperation: Send + Sync {
 
     fn undo(&mut self, world: &mut World);
 
+    fn cancel(&mut self, world: &mut World) {
+        todo!()
+    }
+
     fn redo(&mut self, world: &mut World);
 }
 
+/// a basic command that cna not be undone
 pub trait CanvasCommand: Send + Sync {
     fn process(&mut self, world: &mut World, canvas_commands: &mut CanvasCommands);
 
@@ -69,8 +75,9 @@ pub trait CanvasCommand: Send + Sync {
 
 #[derive(Resource, Default)]
 pub struct CanvasCommands {
-    queue: VecDeque<CommandType>,
-    history: Vec<Box<dyn CanvasOperation>>,
+    call_queue: VecDeque<CommandType>,
+    cancel_queue: VecDeque<Box<dyn CanvasOperation>>,
+    call_history: Vec<Box<dyn CanvasOperation>>,
     undo_history: Vec<Box<dyn CanvasOperation>>,
     max_history: Option<usize>,
 }
@@ -80,7 +87,11 @@ impl CanvasCommands {
         if let CommandType::Operation(_command) = &command {
             self.undo_history.clear()
         }
-        self.queue.push_back(command);
+        self.call_queue.push_back(command);
+    }
+
+    pub fn cancel(&mut self, command: impl CanvasOperation + 'static) {
+        self.cancel_queue.push_back(Box::new(command));
     }
 
     pub fn start_painting(&mut self, color: Color) {
@@ -95,12 +106,16 @@ impl CanvasCommands {
     }
 
     fn call(&mut self, world: &mut World) {
-        while let Some(mut command) = self.queue.pop_front() {
+        while let Some(mut command) = self.call_queue.pop_front() {
             command.process(world, self);
 
             if let CommandType::Operation(op) = command {
-                self.history.push(op);
+                self.call_history.push(op);
             }
+        }
+
+        while let Some(mut command) = self.cancel_queue.pop_front() {
+            command.process(world, self);
         }
     }
 
@@ -113,7 +128,7 @@ impl CanvasCommands {
     }
 
     fn perform_undo(&mut self, world: &mut World) {
-        if let Some(mut command) = self.history.pop() {
+        if let Some(mut command) = self.call_history.pop() {
             info!("[UNDO] : {}", command.name());
             command.undo(world);
             self.undo_history.push(command);
@@ -124,13 +139,13 @@ impl CanvasCommands {
         if let Some(mut command) = self.undo_history.pop() {
             info!("[REDO] : {}", command.name());
             command.redo(world);
-            self.history.push(command);
+            self.call_history.push(command);
         }
     }
 }
 
 pub fn process_commands(world: &mut World) {
     world.resource_scope(|world, mut canvas_commands: Mut<CanvasCommands>| {
-        canvas_commands.call(world)
+        canvas_commands.call(world);
     })
 }
