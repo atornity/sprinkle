@@ -14,9 +14,13 @@ impl Fill {
     }
 }
 
-impl CanvasCommand for Fill {
+impl CanvasOperation for Fill {
+    fn name(&self) -> &'static str {
+        "Fill"
+    }
+
     // TODO: make it context aware
-    fn process(&mut self, world: &mut World, canvas_commands: &mut CanvasCommands) {
+    fn process(&mut self, world: &mut World, _canvas_commands: &mut CanvasCommands) {
         world.resource_scope(|world, canvas: Mut<Canvas>| {
             world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
                 let mut layers = world.query::<&Layer>();
@@ -53,8 +57,21 @@ impl CanvasCommand for Fill {
         });
     }
 
-    fn name(&self) -> &'static str {
-        "Fill"
+    fn undo(&mut self, world: &mut World) {
+        world.resource_scope(|world, canvas: Mut<Canvas>| {
+            world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
+                let mut layers = world.query::<&Layer>();
+
+                let layer = layers.get(world, canvas.layer_id).unwrap();
+                let image = images.get_mut(&layer.frames[&0]).unwrap();
+
+                std::mem::swap(&mut self.buffer, &mut image.data);
+            });
+        });
+    }
+
+    fn redo(&mut self, world: &mut World) {
+        self.undo(world)
     }
 }
 
