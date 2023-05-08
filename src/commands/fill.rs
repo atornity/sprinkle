@@ -58,4 +58,12 @@ impl CanvasCommand for Fill {
     }
 }
 
-// TODO: implement undo redo to the fill tool
+pub fn canvas_fill(
+    paint_tool: Res<PaintTool>,
+    canvas: Res<Canvas>,
+    layers: Query<&Layer>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let layer = layers.get(canvas.layer_id).unwrap();
+    let image = images.get_mut(&layer.frames[&0]).unwrap();
+}

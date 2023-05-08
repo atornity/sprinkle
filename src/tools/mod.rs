@@ -7,3 +7,6 @@ pub enum Tool {
     Bucket,
     Select,
 }
+
+#[derive(Component)]
+pub struct BucketState {}
