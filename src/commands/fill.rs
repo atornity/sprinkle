@@ -97,7 +97,7 @@ pub fn canvas_fill(
                 if canvas.in_bounds(pos.as_vec2()) {
                     let col = image.color_at_pos(pos.as_vec2());
 
-                    if col == bucket_state.fill_in_color
+                    if color_distance(col, bucket_state.fill_in_color) < 0.01
                         && color_distance(col, bucket_state.color) > 0.01
                     {
                         new_set.insert(pos);
