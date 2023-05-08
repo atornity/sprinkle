@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::{
     canvas::{Canvas, PaintTool},
     layer::Layer,
-    Draw, OperationState,
+    Draw, Operation,
 };
 
 pub mod fill;

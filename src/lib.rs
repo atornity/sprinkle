@@ -7,10 +7,12 @@ pub mod canvas;
 pub mod commands;
 pub mod layer;
 pub mod timeline;
+pub mod tools;
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum OperationState {
+pub enum Operation {
     Painting,
+    Filling,
     #[default]
     Idle,
 }

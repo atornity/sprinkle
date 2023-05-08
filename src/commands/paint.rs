@@ -23,7 +23,7 @@ impl Default for Paint {
 impl CanvasCommand for Paint {
     fn process(&mut self, world: &mut World, _canvas_commands: &mut CanvasCommands) {
         world.resource_scope(|world, mut paint_tool: Mut<PaintTool>| {
-            world.resource_scope(|world, mut next_state: Mut<NextState<OperationState>>| {
+            world.resource_scope(|world, mut next_state: Mut<NextState<Operation>>| {
                 world.resource_scope(|world, canvas: Mut<Canvas>| {
                     world.resource_scope(|world, images: Mut<Assets<Image>>| {
                         let mut layers = world.query::<&Layer>();
@@ -34,7 +34,7 @@ impl CanvasCommand for Paint {
                         self.buffer = image.data.clone();
                     });
                 });
-                next_state.set(OperationState::Painting);
+                next_state.set(Operation::Painting);
             });
             paint_tool.color = self.color;
         });
@@ -76,14 +76,14 @@ pub struct StopPaint;
 impl CanvasCommand for StopPaint {
     fn process(&mut self, world: &mut World, _canvas_commands: &mut CanvasCommands) {
         world.resource_scope(|world, _paint_tool: Mut<PaintTool>| {
-            world.resource_scope(|_world, mut next_state: Mut<NextState<OperationState>>| {
-                next_state.set(OperationState::Idle);
+            world.resource_scope(|_world, mut next_state: Mut<NextState<Operation>>| {
+                next_state.set(Operation::Idle);
             });
         });
     }
 
     fn name(&self) -> &'static str {
-        "StopPaint"
+        "Stop Paint"
     }
 }
 
