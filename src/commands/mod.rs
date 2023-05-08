@@ -51,7 +51,11 @@ impl CommandType {
     }
 }
 
-pub trait CanvasOperation: Send + Sync + CanvasCommand {
+pub trait CanvasOperation: Send + Sync {
+    fn name(&self) -> &'static str;
+
+    fn process(&mut self, world: &mut World, canvas_commands: &mut CanvasCommands);
+
     fn undo(&mut self, world: &mut World);
 
     fn redo(&mut self, world: &mut World);
