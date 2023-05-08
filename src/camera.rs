@@ -3,6 +3,16 @@ use bevy::{
     prelude::*,
 };
 
+pub fn setup_camera(mut commands: Commands) {
+    commands.spawn(Camera2dBundle {
+        projection: OrthographicProjection {
+            scale: 0.1,
+            ..Default::default()
+        },
+        ..Default::default()
+    });
+}
+
 pub fn zoom_camera(
     mut query: Query<&mut OrthographicProjection>,
     mut mouse_scroll: EventReader<MouseWheel>,
