@@ -20,7 +20,10 @@ impl Default for Paint {
     }
 }
 
-impl CanvasCommand for Paint {
+impl CanvasOperation for Paint {
+    fn name(&self) -> &'static str {
+        "Paint"
+    }
     fn process(&mut self, world: &mut World, _canvas_commands: &mut CanvasCommands) {
         world.resource_scope(|world, mut paint_tool: Mut<PaintTool>| {
             world.resource_scope(|world, mut next_state: Mut<NextState<OperationState>>| {
@@ -40,12 +43,6 @@ impl CanvasCommand for Paint {
         });
     }
 
-    fn name(&self) -> &'static str {
-        "Paint"
-    }
-}
-
-impl CanvasOperation for Paint {
     fn undo(&mut self, world: &mut World) {
         world.resource_scope(|world, canvas: Mut<Canvas>| {
             world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
@@ -58,6 +55,7 @@ impl CanvasOperation for Paint {
             });
         });
     }
+
     fn redo(&mut self, world: &mut World) {
         world.resource_scope(|world, canvas: Mut<Canvas>| {
             world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
