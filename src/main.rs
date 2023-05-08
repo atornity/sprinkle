@@ -7,18 +7,19 @@ use bevy::{
 use sprinkle::{
     camera::{move_camera, zoom_camera},
     canvas::{process_cursor_position, Canvas, PaintTool},
-    commands::{paint::canvas_paint, process_commands, CanvasCommands},
+    commands::{fill::canvas_fill, paint::canvas_paint, process_commands, CanvasCommands},
     image,
     layer::{Layer, LayerBundle},
-    tools::Tool,
-    Operation,
+    tools::{BucketState, Tool},
+    OperationState,
 };
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .add_state::<Operation>()
+        .add_state::<OperationState>()
         .add_state::<Tool>()
+        .init_resource::<BucketState>()
         .init_resource::<PaintTool>()
         .init_resource::<CanvasCommands>()
         .add_systems(Startup, (setup_canvas, setup_camera, setup_background))
@@ -34,7 +35,12 @@ fn main() {
         .add_systems(Update, (move_camera, zoom_camera))
         .add_systems(
             Update,
-            canvas_paint.run_if(in_state(Tool::Brush).and_then(in_state(Operation::Painting))),
+            (
+                canvas_paint
+                    .run_if(in_state(Tool::Brush).and_then(in_state(OperationState::Painting))),
+                canvas_fill
+                    .run_if(in_state(Tool::Bucket).and_then(in_state(OperationState::Filling))),
+            ),
         )
         .add_systems(PostUpdate, (process_commands, undo).chain())
         .run();

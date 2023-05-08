@@ -25,6 +25,14 @@ impl Canvas {
     pub fn size(&self) -> Vec2 {
         Vec2::new(self.width as f32, self.height as f32)
     }
+
+    pub fn global_cursor_position(&self) -> Vec2 {
+        todo!()
+    }
+
+    pub fn in_bounds(&self, pos: Vec2) -> bool {
+        (0.0..self.width as f32).contains(&pos.x) && (0.0..self.height as f32).contains(&pos.y)
+    }
 }
 
 pub fn process_cursor_position(

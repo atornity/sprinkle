@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::{
     canvas::{Canvas, PaintTool},
     layer::Layer,
-    Draw, Operation,
+    Draw, OperationState,
 };
 
 pub mod fill;
@@ -91,7 +91,7 @@ impl CanvasCommands {
     }
 
     pub fn fill(&mut self, color: Color) {
-        self.add(CommandType::operation(Fill::new(color)))
+        self.add(CommandType::operation(Fill::new(color, 1.0)))
     }
 
     fn call(&mut self, world: &mut World) {

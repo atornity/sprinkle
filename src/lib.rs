@@ -10,7 +10,7 @@ pub mod timeline;
 pub mod tools;
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum Operation {
+pub enum OperationState {
     Painting,
     Filling,
     #[default]
@@ -51,7 +51,8 @@ pub fn image(width: u32, height: u32, color: Color) -> Image {
 
 pub trait Draw {
     fn paint(&mut self, pos: Vec2, color: Color);
-    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8];
+    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8]; // TODO: remove this
+    fn color_at_pos(&self, pos: Vec2) -> Color;
 }
 
 impl Draw for Image {
@@ -75,4 +76,14 @@ impl Draw for Image {
 
         &mut self.data[i..(i + 4)]
     }
+
+    fn color_at_pos(&self, pos: Vec2) -> Color {
+        let i = (pos.x as usize + pos.y as usize * self.size().x as usize) * 4;
+        let [r, g, b, a] = &self.data[i..(i + 4)] else { unreachable!() };
+        Color::rgba_u8(*r, *g, *b, *a)
+    }
+}
+
+pub fn color_distance(a: Color, b: Color) -> f32 {
+    (a.r() - b.r()).abs() + (a.g() - b.g()).abs() + (a.b() - b.b()).abs() + (a.a() - b.a()).abs()
 }
