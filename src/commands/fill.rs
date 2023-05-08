@@ -95,7 +95,7 @@ pub fn canvas_fill(
         for pos in &bucket_state.alive_pixels {
             image.paint(pos.as_vec2(), bucket_state.color);
 
-            let mut move_pos = |offset: IVec2| {
+            let mut move_pos = |offset: IVec2| -> bool {
                 let pos = *pos + offset;
 
                 if canvas.in_bounds(pos.as_vec2()) {
@@ -105,20 +105,34 @@ pub fn canvas_fill(
                         && color_distance(col, bucket_state.color) > 0.01
                     {
                         new_set.insert(pos);
+                        return true;
                     }
                 }
+                false
             };
 
-            move_pos(IVec2::new(0, -1));
-            move_pos(IVec2::new(0, 1));
-            move_pos(IVec2::new(1, 0));
-            move_pos(IVec2::new(-1, 0));
+            // TODO: make this effect cooler
 
-            if bucket_state.corner_fill {
-                move_pos(IVec2::new(-1, 1));
-                move_pos(IVec2::new(1, 1));
-                move_pos(IVec2::new(1, -1));
+            let l = move_pos(IVec2::new(-1, 0));
+            let u = move_pos(IVec2::new(0, -1));
+            let r = move_pos(IVec2::new(1, 0));
+            let d = move_pos(IVec2::new(0, 1));
+
+            // left / up corner
+            if l && u && (bucket_state.elapsed * 9834.0) as i32 % 2 == 0 {
                 move_pos(IVec2::new(-1, -1));
+            }
+            // right / up corner
+            if u && r && (bucket_state.elapsed * 897231.0) as i32 % 2 == 0 {
+                move_pos(IVec2::new(1, -1));
+            }
+            // right / down corner
+            if r && d && (bucket_state.elapsed * 12.0) as i32 % 2 == 0 {
+                move_pos(IVec2::new(1, 1));
+            }
+            // left / down corner
+            if d && l && (bucket_state.elapsed * 43209.0) as i32 % 2 == 0 {
+                move_pos(IVec2::new(-1, 1));
             }
         }
 
