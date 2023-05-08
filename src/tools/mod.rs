@@ -17,3 +17,9 @@ pub struct BucketState {
     pub fill_in_color: Color,
     pub alive_pixels: HashSet<IVec2>,
 }
+
+#[derive(Resource, Default)]
+pub struct BrushState {
+    pub color: Color,
+    pub last_position: Vec2,
+}
