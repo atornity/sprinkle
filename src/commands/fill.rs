@@ -46,6 +46,7 @@ impl CanvasOperation for Fill {
                     bucket_state.fill_in_color = image.color_at_pos(pos);
                     bucket_state.color = self.color;
                     bucket_state.speed = self.speed;
+                    bucket_state.elapsed = 0.0;
                 }
             });
         });
@@ -83,7 +84,10 @@ pub fn canvas_fill(
     let image = images.get_mut(&layer.frames[&0]).unwrap();
 
     // do it more times if running slowly
-    let times = time.delta().as_millis() as f32 * bucket_state.speed;
+    let times =
+        time.delta().as_millis() as f32 * bucket_state.speed * (bucket_state.elapsed * 40.0 + 1.0);
+
+    bucket_state.elapsed += time.delta_seconds();
 
     for _ in 0..times as usize {
         let mut new_set: HashSet<IVec2> = HashSet::new();
