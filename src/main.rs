@@ -2,10 +2,11 @@
 
 use bevy::{
     input::mouse::{MouseMotion, MouseWheel},
+    math::Vec3Swizzles,
     prelude::*,
 };
 use sprinkle::{
-    camera::{move_camera, zoom_camera},
+    camera::{move_camera, setup_camera, zoom_camera},
     canvas::{process_cursor_position, Canvas, PaintTool},
     commands::{fill::canvas_fill, paint::canvas_paint, process_commands, CanvasCommands},
     image,
@@ -27,6 +28,7 @@ fn main() {
             Update,
             (
                 process_cursor_position,
+                shadow_paralax,
                 change_tool,
                 paint.run_if(in_state(Tool::Brush)),
                 fill.run_if(in_state(Tool::Bucket)),
@@ -46,25 +48,40 @@ fn main() {
         .run();
 }
 
-fn setup_camera(mut commands: Commands) {
-    commands.spawn(Camera2dBundle {
-        projection: OrthographicProjection {
-            scale: 0.1,
-            ..Default::default()
-        },
-        ..Default::default()
-    });
-}
+#[derive(Component)]
+struct Shadow;
 
 fn setup_background(mut commands: Commands) {
-    commands.spawn(SpriteBundle {
-        sprite: Sprite {
-            color: Color::rgba(0.5, 0.5, 0.5, 0.5),
+    // shadow
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: Color::rgba(0.0, 0.0, 0.0, 0.2),
+                ..Default::default()
+            },
+            transform: Transform {
+                scale: Vec3::new(128.0, 128.0, 1.0),
+                translation: Vec3::new(0.0, 0.0, -2.0),
+                ..Default::default()
+            },
             ..Default::default()
         },
-        transform: Transform::from_scale(Vec3::new(128.0, 128.0, 1.0)),
-        ..Default::default()
-    });
+        Shadow,
+    ));
+}
+
+fn shadow_paralax(
+    mut background: Query<&mut Transform, (With<Shadow>, Without<Camera2d>)>,
+    camera: Query<&Transform, With<Camera2d>>,
+) {
+    let Transform {
+        translation: cam_pos,
+        ..
+    } = camera.single();
+
+    let mut bg = background.single_mut();
+
+    bg.translation = (cam_pos.xy() * -0.1).extend(0.0);
 }
 
 fn setup_canvas(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
