@@ -24,6 +24,7 @@ impl CanvasOperation for Paint {
     fn name(&self) -> &'static str {
         "Paint"
     }
+
     fn process(&mut self, world: &mut World, _canvas_commands: &mut CanvasCommands) {
         world.resource_scope(|world, mut paint_tool: Mut<PaintTool>| {
             world.resource_scope(|world, mut next_state: Mut<NextState<OperationState>>| {
@@ -81,7 +82,7 @@ impl CanvasCommand for StopPaint {
     }
 
     fn name(&self) -> &'static str {
-        "StopPaint"
+        "Stop Paint"
     }
 }
 

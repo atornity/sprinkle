@@ -25,6 +25,14 @@ impl Canvas {
     pub fn size(&self) -> Vec2 {
         Vec2::new(self.width as f32, self.height as f32)
     }
+
+    pub fn global_cursor_position(&self) -> Vec2 {
+        todo!()
+    }
+
+    pub fn in_bounds(&self, pos: Vec2) -> bool {
+        (0.0..self.width as f32).contains(&pos.x) && (0.0..self.height as f32).contains(&pos.y)
+    }
 }
 
 pub fn process_cursor_position(
@@ -62,85 +70,13 @@ pub fn process_cursor_position(
     }
 }
 
-#[derive(Default, Clone, Copy)]
-pub enum PaintMode {
-    Paint,
-    Erase,
-    #[default]
-    None,
-}
-
 #[derive(Resource, Default)]
 pub struct PaintTool {
     pub color: Color,
-    pub buffer: Vec<u8>,
-    pub paint_mode: PaintMode,
 }
 
 impl PaintTool {
     pub fn new() -> Self {
         PaintTool::default()
     }
-    pub fn start_painting(&mut self, color: Color) {
-        self.color = color;
-        self.paint_mode = PaintMode::Paint;
-    }
-    pub fn stop_painting(&mut self) {
-        self.paint_mode = PaintMode::None;
-    }
-    // fn paint(&mut self, position: Vec2, width: u32) {
-    //     let i = position.x as u32 + position.y as u32 * width;
-
-    //     let i = i as usize * 4;
-
-    //     let color = self.color.as_rgba_u8();
-
-    //     self.buffer[i] = color[0];
-    //     self.buffer[i + 1] = color[1];
-    //     self.buffer[i + 2] = color[2];
-    //     self.buffer[i + 3] = color[3];
-    // }
 }
-
-// pub fn process_painting(
-//     mut paint_tool: ResMut<PaintTool>,
-//     mut paint_mode: Local<PaintMode>,
-//     canvas: Res<Canvas>,
-//     mut canvas_commands: ResMut<CanvasCommands>,
-//     layers: Query<&Layer>,
-//     mut images: ResMut<Assets<Image>>,
-// ) {
-//     let size = (canvas.width * canvas.height * 4) as usize;
-
-//     use PaintMode::*;
-//     match (*paint_mode, paint_tool.paint_mode) {
-//         // painting
-//         (Paint, Paint) => {
-//             if let Ok(cursor_pos) = canvas.cursor_position {
-//                 let layer = layers.get(canvas.layer_id).unwrap();
-//                 let image = images.get_mut(&layer.frames[&0]).unwrap();
-
-//                 image.paint(cursor_pos, paint_tool.color);
-//             }
-//         }
-//         // started painting
-//         (None, Paint) => {
-//             info!("started painting");
-//             let layer = layers.get(canvas.layer_id).unwrap();
-//             let image = images.get(&layer.frames[&0]).unwrap();
-//             paint_tool.buffer = image.data.clone();
-//         }
-//         // stopped painting
-//         (Paint, None) => {
-//             info!("stopped painting");
-//             let mut buffer = Vec::new();
-//             std::mem::swap(&mut buffer, &mut paint_tool.buffer);
-
-//             canvas_commands.paint(buffer)
-//         }
-//         // not painting or erasing
-//         (None, None) => (),
-//         _ => unimplemented!("erasing not implemented"),
-//     }
-//     *paint_mode = paint_tool.paint_mode;
-// }
