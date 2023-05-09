@@ -94,6 +94,10 @@ impl CanvasCommands {
         self.cancel_queue.push_back(Box::new(command));
     }
 
+    fn c(&mut self) {
+        
+    }
+
     pub fn start_painting(&mut self, color: Color) {
         self.add(CommandType::operation(Paint::new(color)))
     }
@@ -115,7 +119,7 @@ impl CanvasCommands {
         }
 
         while let Some(mut command) = self.cancel_queue.pop_front() {
-            command.process(world, self);
+            command.cancel(world);
         }
     }
 

@@ -8,7 +8,11 @@ use bevy::{
 use sprinkle::{
     camera::{move_camera, setup_camera, zoom_camera},
     canvas::{process_cursor_position, Canvas, PaintTool},
-    commands::{fill::canvas_fill, paint::canvas_paint, process_commands, CanvasCommands},
+    commands::{
+        fill::canvas_fill,
+        paint::{canvas_paint, Paint},
+        process_commands, CanvasCommands,
+    },
     image,
     layer::{Layer, LayerBundle},
     tools::{BucketState, Tool},
@@ -113,6 +117,10 @@ fn paint(mut canvas_commands: ResMut<CanvasCommands>, input: Res<Input<MouseButt
         canvas_commands.start_painting(Color::rgba(0.0, 0.0, 0.0, 0.0));
     } else if input.just_released(MouseButton::Right) {
         canvas_commands.stop_painting();
+    }
+
+    if input.just_pressed(MouseButton::Middle) {
+        canvas_commands.cancel(Paint::new(Color::WHITE));
     }
 }
 
