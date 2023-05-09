@@ -102,7 +102,7 @@ impl CanvasCommands {
     }
 
     pub fn fill(&mut self, color: Color) {
-        self.add(CommandType::operation(Fill::new(color, 0.1)))
+        self.add(CommandType::operation(Fill::new(color, 0.5)))
     }
 
     fn call(&mut self, world: &mut World) {

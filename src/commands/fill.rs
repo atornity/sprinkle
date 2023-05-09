@@ -1,4 +1,5 @@
 use bevy::utils::HashSet;
+use rand::{self, Rng};
 
 use crate::{color_distance, tools::BucketState};
 
@@ -83,62 +84,53 @@ pub fn canvas_fill(
     let layer = layers.get(canvas.layer_id).unwrap();
     let image = images.get_mut(&layer.frames[&0]).unwrap();
 
-    // do it more times if running slowly
+    // how many times we should run the loop this frame
     let times =
-        time.delta().as_millis() as f32 * bucket_state.speed * (bucket_state.elapsed * 40.0 + 1.0);
+        time.delta().as_millis() as f32 * bucket_state.speed * (bucket_state.elapsed * 50.0 + 1.0);
 
     bucket_state.elapsed += time.delta_seconds();
 
-    for _ in 0..times as usize {
-        let mut new_set: HashSet<IVec2> = HashSet::new();
+    let mut rng = rand::thread_rng();
 
-        for pos in &bucket_state.alive_pixels {
+    // the possible directions we can move
+    const DIRECTIONS: [IVec2; 4] = [
+        IVec2::NEG_X, // left
+        IVec2::X,     // right
+        IVec2::NEG_Y, // up
+        IVec2::Y,     // down
+    ];
+
+    for _ in 0..times as usize {
+        'pixel: for pos in bucket_state.alive_pixels.clone() {
             image.paint(pos.as_vec2(), bucket_state.color);
 
-            let mut move_pos = |offset: IVec2| -> bool {
-                let pos = *pos + offset;
+            let mut directions = Vec::from(DIRECTIONS);
 
-                if canvas.in_bounds(pos.as_vec2()) {
-                    let col = image.color_at_pos(pos.as_vec2());
+            // try to move in a random direction.
+            // if that direcion is outside of the sprite or the color is wrong.
+            // try a different random direction.
+            for i in (0..4).rev() {
+                let n = if i > 0 { rng.gen_range(0..i + 1) } else { 0 };
+
+                let new_pos = pos + directions.remove(n);
+
+                if canvas.in_bounds(new_pos.as_vec2()) {
+                    let col = image.color_at_pos(new_pos.as_vec2());
 
                     if color_distance(col, bucket_state.fill_in_color) < 0.01
                         && color_distance(col, bucket_state.color) > 0.01
                     {
-                        new_set.insert(pos);
-                        return true;
+                        bucket_state.alive_pixels.insert(new_pos);
+                        continue 'pixel;
                     }
                 }
-                false
-            };
+            }
 
-            // TODO: make this effect cooler
-
-            let l = move_pos(IVec2::new(-1, 0));
-            let u = move_pos(IVec2::new(0, -1));
-            let r = move_pos(IVec2::new(1, 0));
-            let d = move_pos(IVec2::new(0, 1));
-
-            // left / up corner
-            if l && u && (bucket_state.elapsed * 9834.0) as i32 % 2 == 0 {
-                move_pos(IVec2::new(-1, -1));
-            }
-            // right / up corner
-            if u && r && (bucket_state.elapsed * 897231.0) as i32 % 2 == 0 {
-                move_pos(IVec2::new(1, -1));
-            }
-            // right / down corner
-            if r && d && (bucket_state.elapsed * 12.0) as i32 % 2 == 0 {
-                move_pos(IVec2::new(1, 1));
-            }
-            // left / down corner
-            if d && l && (bucket_state.elapsed * 43209.0) as i32 % 2 == 0 {
-                move_pos(IVec2::new(-1, 1));
-            }
+            // kill the pixel if we failed to move in all directions
+            bucket_state.alive_pixels.remove(&pos);
         }
-
-        if !new_set.is_empty() {
-            bucket_state.alive_pixels = new_set
-        } else {
+        // transition to idle if there are no more pixels alive
+        if bucket_state.alive_pixels.is_empty() {
             next_state.set(OperationState::Idle);
             break;
         }
