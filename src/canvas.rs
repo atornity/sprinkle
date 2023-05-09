@@ -5,11 +5,6 @@ use crate::{
     layer::{Layer, LayerBundle},
 };
 
-pub enum CursorPosition {
-    Inside(Vec2),
-    Outside(Vec2),
-}
-
 #[derive(Resource)]
 pub struct Canvas {
     pub width: u32,
@@ -49,7 +44,7 @@ impl Canvas {
     }
 }
 
-pub fn process_cursor_position(
+pub fn cursor_position(
     mut canvas: ResMut<Canvas>,
     window: Query<&Window>,
     camera: Query<(&Transform, &OrthographicProjection)>,

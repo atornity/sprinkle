@@ -39,7 +39,7 @@ pub enum HistoryItem {
 
 pub fn undo_redo(
     mut history: ResMut<History>,
-    mut brush_state: ResMut<BrushState>,
+    _brush_state: ResMut<BrushState>,
     input: Res<Input<KeyCode>>,
     canvas: Res<Canvas>,
     layers: Query<&Layer>,

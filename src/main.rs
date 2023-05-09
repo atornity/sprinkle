@@ -1,15 +1,10 @@
 #![feature(generic_const_exprs, array_chunks, exclusive_range_pattern)]
 
-use bevy::{
-    input::mouse::{MouseMotion, MouseWheel},
-    math::Vec3Swizzles,
-    prelude::*,
-};
+use bevy::{math::Vec3Swizzles, prelude::*};
 use sprinkle::{
     camera::{move_camera, setup_camera, zoom_camera},
-    canvas::{cursor_preview, process_cursor_position, setup_canvas, setup_cursor_preview, Canvas},
-    image,
-    layer::{Layer, LayerBundle},
+    canvas::{cursor_position, cursor_preview, setup_canvas, setup_cursor_preview, Canvas},
+    layer::Layer,
     tools::{BrushState, BucketState, Tool},
     undo_redo, History, HistoryItem, ImagePaint, ToolState,
 };
@@ -34,14 +29,15 @@ fn main() {
         .add_systems(
             Update,
             (
-                process_cursor_position,
-                // shadow_paralax,
+                cursor_position,
+                background_paralax,
                 undo_redo,
                 change_tool,
-                cursor_preview,
+                move_camera,
+                zoom_camera,
             ),
         )
-        .add_systems(Update, (move_camera, zoom_camera))
+        .add_systems(PostUpdate, cursor_preview)
         .add_systems(
             Update,
             (
@@ -55,10 +51,9 @@ fn main() {
 }
 
 #[derive(Component)]
-struct Shadow;
+struct Background;
 
 fn setup_background(mut commands: Commands) {
-    // shadow
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -72,12 +67,12 @@ fn setup_background(mut commands: Commands) {
             },
             ..Default::default()
         },
-        Shadow,
+        Background,
     ));
 }
 
-fn shadow_paralax(
-    mut background: Query<&mut Transform, (With<Shadow>, Without<Camera2d>)>,
+fn background_paralax(
+    mut background: Query<&mut Transform, (With<Background>, Without<Camera2d>)>,
     camera: Query<&Transform, With<Camera2d>>,
 ) {
     let Transform {
@@ -135,7 +130,7 @@ fn stop_painting(mut brush_state: ResMut<BrushState>, mut history: ResMut<Histor
 }
 
 fn paint(
-    mut brush: ResMut<BrushState>,
+    brush: ResMut<BrushState>,
     canvas: Res<Canvas>,
     layers: Query<&Layer>,
     mut images: ResMut<Assets<Image>>,
