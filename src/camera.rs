@@ -23,18 +23,15 @@ pub fn zoom_camera(
 ) {
     let (mut trans, mut proj) = camera.single_mut();
     for ev in mouse_scroll.iter() {
-        let delta = ev.y * -0.1;
-
         let s = proj.scale;
 
-        proj.scale += delta * s;
+        let zoom_delta = ev.y * -0.1;
+
+        proj.scale += zoom_delta * s;
         proj.scale = proj.scale.clamp(0.01, 1.0);
 
-        let delta = (trans.translation.xy() - canvas.global_cursor_position()) * delta;
-        println!("{}", delta);
-
-        // trans.translation = delta.extend(1000.0);
-        trans.translation += delta.extend(0.0);
+        let move_delta = (trans.translation.xy() - canvas.global_cursor_position()) * zoom_delta;
+        trans.translation += move_delta.extend(0.0);
     }
 }
 

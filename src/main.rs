@@ -29,10 +29,10 @@ fn main() {
                 setup_cursor_preview,
             ),
         )
+        .add_systems(PreUpdate, cursor_position)
         .add_systems(
             Update,
             (
-                cursor_position,
                 background_paralax,
                 undo_redo,
                 change_tool,
