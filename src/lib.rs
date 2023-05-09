@@ -1,20 +1,76 @@
 #![feature(drain_filter, array_chunks)]
 
 use bevy::prelude::*;
+use canvas::Canvas;
+use layer::Layer;
+use tools::BrushState;
 
 pub mod camera;
 pub mod canvas;
-pub mod commands;
 pub mod layer;
 pub mod timeline;
 pub mod tools;
 
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
-pub enum OperationState {
+pub enum ToolState {
     Painting,
     Filling,
     #[default]
     Idle,
+}
+
+#[derive(Resource, Default)]
+pub struct History {
+    pub past: Vec<HistoryItem>,
+    pub future: Vec<HistoryItem>,
+    max_size: usize,
+}
+
+impl History {
+    pub fn add(&mut self, item: HistoryItem) {
+        self.past.push(item);
+        self.future.clear();
+    }
+}
+
+pub enum HistoryItem {
+    Painted(Vec<u8>),
+}
+
+pub fn undo_redo(
+    mut history: ResMut<History>,
+    mut brush_state: ResMut<BrushState>,
+    input: Res<Input<KeyCode>>,
+    canvas: Res<Canvas>,
+    layers: Query<&Layer>,
+    mut images: ResMut<Assets<Image>>,
+) {
+    let layer = layers.get(canvas.layer_id).unwrap();
+    let image = images.get_mut(&layer.frames[&0]).unwrap();
+
+    if input.just_pressed(KeyCode::Comma) {
+        if let Some(mut item) = history.past.pop() {
+            match &mut item {
+                HistoryItem::Painted(data) => {
+                    info!("undo paint");
+                    std::mem::swap(data, &mut image.data);
+                }
+            }
+            history.future.push(item);
+        }
+    }
+
+    if input.just_pressed(KeyCode::Period) {
+        if let Some(mut item) = history.future.pop() {
+            match &mut item {
+                HistoryItem::Painted(data) => {
+                    info!("redo paint");
+                    std::mem::swap(data, &mut image.data);
+                }
+            }
+            history.past.push(item);
+        }
+    }
 }
 
 pub fn image(width: u32, height: u32, color: Color) -> Image {
@@ -49,13 +105,13 @@ pub fn image(width: u32, height: u32, color: Color) -> Image {
     }
 }
 
-pub trait Draw {
+pub trait ImagePaint {
     fn paint(&mut self, pos: Vec2, color: Color);
     fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8]; // TODO: remove this
     fn color_at_pos(&self, pos: Vec2) -> Color;
 }
 
-impl Draw for Image {
+impl ImagePaint for Image {
     /// ## Panics
     /// if the position is outside the bounds
     fn paint(&mut self, pos: Vec2, color: Color) {

@@ -20,6 +20,7 @@ pub struct BucketState {
 
 #[derive(Resource, Default)]
 pub struct BrushState {
+    pub data: Option<Vec<u8>>,
     pub color: Color,
     pub last_position: Vec2,
 }
