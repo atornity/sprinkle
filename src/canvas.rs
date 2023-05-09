@@ -122,15 +122,3 @@ pub fn cursor_preview(
         *visibility = Visibility::Hidden
     }
 }
-
-#[derive(Resource, Default)]
-pub struct PaintTool {
-    // TODO: remove this
-    pub color: Color,
-}
-
-impl PaintTool {
-    pub fn new() -> Self {
-        PaintTool::default()
-    }
-}

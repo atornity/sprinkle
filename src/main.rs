@@ -7,10 +7,7 @@ use bevy::{
 };
 use sprinkle::{
     camera::{move_camera, setup_camera, zoom_camera},
-    canvas::{
-        cursor_preview, process_cursor_position, setup_canvas, setup_cursor_preview, Canvas,
-        PaintTool,
-    },
+    canvas::{cursor_preview, process_cursor_position, setup_canvas, setup_cursor_preview, Canvas},
     image,
     layer::{Layer, LayerBundle},
     tools::{BrushState, BucketState, Tool},
