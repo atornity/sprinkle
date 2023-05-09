@@ -1,3 +1,5 @@
+use crate::{buffer::ImageBuffer, tools::BrushState};
+
 use super::*;
 
 pub struct Paint {
@@ -26,21 +28,28 @@ impl CanvasOperation for Paint {
     }
 
     fn process(&mut self, world: &mut World, _canvas_commands: &mut CanvasCommands) {
-        world.resource_scope(|world, mut paint_tool: Mut<PaintTool>| {
-            world.resource_scope(|world, mut next_state: Mut<NextState<OperationState>>| {
-                world.resource_scope(|world, canvas: Mut<Canvas>| {
-                    world.resource_scope(|world, images: Mut<Assets<Image>>| {
-                        let mut layers = world.query::<&Layer>();
+        world
+            .resource_mut::<NextState<OperationState>>()
+            .set(OperationState::Painting);
 
-                        let layer = layers.get(world, canvas.layer_id).unwrap();
-                        let image = images.get(&layer.frames[&0]).unwrap();
+        world.resource_mut::<BrushState>().color = self.color;
 
-                        self.buffer = image.data.clone();
-                    });
-                });
-                next_state.set(OperationState::Painting);
+        let canvas = world.resource::<Canvas>();
+
+        let layer_id = canvas.layer_id;
+        let buffer_size = canvas.width * canvas.height * 4;
+
+        world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
+            world.resource_scope(|world, buffer: Mut<ImageBuffer>| {
+                let mut layers = world.query::<&Layer>();
+                let layer = layers.get(world, layer_id).unwrap();
+                let image = images.get(&layer.frames[&0]).unwrap();
+
+                self.buffer = image.data.clone();
+
+                let buffer_image = images.get_mut(&buffer.handle).unwrap();
+                buffer_image.data = vec![0; buffer_size as usize];
             });
-            paint_tool.color = self.color;
         });
     }
 
@@ -74,9 +83,22 @@ impl CanvasOperation for Paint {
 pub struct StopPaint;
 impl CanvasCommand for StopPaint {
     fn process(&mut self, world: &mut World, _canvas_commands: &mut CanvasCommands) {
-        world.resource_scope(|world, _paint_tool: Mut<PaintTool>| {
-            world.resource_scope(|_world, mut next_state: Mut<NextState<OperationState>>| {
-                next_state.set(OperationState::Idle);
+        world
+            .resource_mut::<NextState<OperationState>>()
+            .set(OperationState::Idle);
+
+        let canvas = world.resource::<Canvas>();
+        let layer_id = canvas.layer_id;
+        let canvas_width = canvas.width;
+        let canvas_height = canvas.height;
+
+        world.resource_scope(|world, mut images: Mut<Assets<Image>>| {
+            world.resource_scope(|world, mut buffer: Mut<ImageBuffer>| {
+                let mut layers = world.query::<&Layer>();
+                let layer = layers.get(world, layer_id).unwrap();
+
+                buffer.apply_to_image(canvas_width, &mut images, &layer.frames[&0]);
+                buffer.clear(canvas_width, canvas_height, &mut images);
             });
         });
     }
@@ -87,15 +109,20 @@ impl CanvasCommand for StopPaint {
 }
 
 pub fn canvas_paint(
-    paint_tool: Res<PaintTool>,
+    brush: Res<BrushState>,
     canvas: Res<Canvas>,
-    layers: Query<&Layer>,
+    // layers: Query<&Layer>,
     mut images: ResMut<Assets<Image>>,
+    mut buffer: ResMut<ImageBuffer>,
 ) {
-    if let Ok(cursor_pos) = canvas.cursor_position {
-        let layer = layers.get(canvas.layer_id).unwrap();
-        let image = images.get_mut(&layer.frames[&0]).unwrap();
-
-        image.paint(cursor_pos, paint_tool.color);
+    if let Ok(pos) = canvas.cursor_position {
+        if buffer.paint(
+            pos.as_uvec2(),
+            brush.color.as_rgba_u8(),
+            canvas.width,
+            &mut images,
+        ) {
+            info!("[PAINT] color: {:?} at: {}", brush.color.as_rgba_u8(), pos)
+        }
     }
 }

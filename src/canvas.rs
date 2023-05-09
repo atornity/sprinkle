@@ -35,7 +35,7 @@ impl Canvas {
     }
 }
 
-pub fn process_cursor_position(
+pub fn cursor_position(
     mut canvas: ResMut<Canvas>,
     window: Query<&Window>,
     camera: Query<(&Transform, &OrthographicProjection)>,

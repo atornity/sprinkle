@@ -6,12 +6,13 @@ use bevy::{
     prelude::*,
 };
 use sprinkle::{
+    buffer::{buffer_position, setup_buffer},
     camera::{move_camera, setup_camera, zoom_camera},
-    canvas::{process_cursor_position, Canvas, PaintTool},
+    canvas::{cursor_position, Canvas, PaintTool},
     commands::{fill::canvas_fill, paint::canvas_paint, process_commands, CanvasCommands},
     image,
     layer::{Layer, LayerBundle},
-    tools::{BucketState, Tool},
+    tools::{BrushState, BucketState, Tool},
     OperationState,
 };
 
@@ -20,14 +21,19 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_state::<OperationState>()
         .add_state::<Tool>()
+        .init_resource::<BrushState>()
         .init_resource::<BucketState>()
         .init_resource::<PaintTool>()
         .init_resource::<CanvasCommands>()
-        .add_systems(Startup, (setup_canvas, setup_camera, setup_background))
+        .add_systems(
+            Startup,
+            (setup_canvas, setup_camera, setup_background, setup_buffer),
+        )
         .add_systems(
             Update,
             (
-                process_cursor_position,
+                cursor_position,
+                buffer_position,
                 shadow_paralax,
                 change_tool,
                 paint.run_if(in_state(Tool::Brush)),

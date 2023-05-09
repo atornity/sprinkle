@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 
+pub mod buffer;
 pub mod camera;
 pub mod canvas;
 pub mod commands;
@@ -51,8 +52,8 @@ pub fn image(width: u32, height: u32, color: Color) -> Image {
 
 pub trait Draw {
     fn paint(&mut self, pos: Vec2, color: Color);
-    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8]; // TODO: remove this
     fn color_at_pos(&self, pos: Vec2) -> Color;
+    fn paint_buffer(&mut self, buffer: &mut [u8]);
 }
 
 impl Draw for Image {
@@ -70,20 +71,25 @@ impl Draw for Image {
         self.data[i + 3] = color[3];
     }
 
-    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8] {
-        let i = pos.x as u32 + pos.y as u32 * self.size().x as u32;
-        let i = i as usize * 4;
-
-        &mut self.data[i..(i + 4)]
-    }
-
     fn color_at_pos(&self, pos: Vec2) -> Color {
         let i = (pos.x as usize + pos.y as usize * self.size().x as usize) * 4;
         let [r, g, b, a] = &self.data[i..(i + 4)] else { unreachable!() };
         Color::rgba_u8(*r, *g, *b, *a)
     }
+
+    fn paint_buffer(&mut self, buffer: &mut [u8]) {
+        for (i, rgba) in buffer.array_chunks_mut::<4>().enumerate() {
+            
+        }
+    }
 }
 
 pub fn color_distance(a: Color, b: Color) -> f32 {
     (a.r() - b.r()).abs() + (a.g() - b.g()).abs() + (a.b() - b.b()).abs() + (a.a() - b.a()).abs()
+}
+
+fn lerp_u8(a: u8, b: u8, l: u8) -> u8 {
+    // self + ((other - self) as $scalar * scalar).round() as $int
+    let l = l as f32 * u8::MAX as f32;
+    a + ((b - a) as f32 * l) as u8
 }
