@@ -3,10 +3,12 @@
 use bevy::{math::Vec3Swizzles, prelude::*};
 use sprinkle::{
     camera::{move_camera, setup_camera, zoom_camera},
-    canvas::{cursor_position, cursor_preview, setup_canvas, setup_cursor_preview, Canvas},
-    layer::Layer,
-    tools::{BrushState, BucketState, Tool},
-    undo_redo, History, HistoryItem, ImagePaint, ToolState,
+    canvas::{cursor_position, cursor_preview, setup_canvas, setup_cursor_preview},
+    tools::{
+        brush::{paint, start_painting, stop_painting},
+        BrushState, BucketState, Tool,
+    },
+    undo_redo, ColorPalette, ColorState, History, ToolState,
 };
 
 fn main() {
@@ -17,6 +19,7 @@ fn main() {
         .init_resource::<BrushState>()
         .init_resource::<BucketState>()
         .init_resource::<History>()
+        .init_resource::<ColorPalette>()
         .add_systems(
             Startup,
             (
@@ -100,45 +103,24 @@ fn change_tool(input: Res<Input<KeyCode>>, mut next_state: ResMut<NextState<Tool
     }
 }
 
-fn paint_input(input: Res<Input<MouseButton>>, mut next_state: ResMut<NextState<ToolState>>) {
+fn paint_input(
+    input: Res<Input<MouseButton>>,
+    mut next_state: ResMut<NextState<ToolState>>,
+    color: Res<ColorPalette>,
+    mut brush: ResMut<BrushState>,
+) {
     if input.just_pressed(MouseButton::Left) {
+        brush.color = color.primary_color();
         next_state.set(ToolState::Painting);
     }
     if input.just_released(MouseButton::Left) {
         next_state.set(ToolState::Idle);
     }
-}
-
-fn start_painting(
-    mut brush_state: ResMut<BrushState>,
-    canvas: Res<Canvas>,
-    layers: Query<&Layer>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    info!("started painting!");
-
-    let layer = layers.get(canvas.layer_id).unwrap();
-    let image = images.get_mut(&layer.frames[&0]).unwrap();
-
-    brush_state.data = Some(image.data.clone());
-}
-
-fn stop_painting(mut brush_state: ResMut<BrushState>, mut history: ResMut<History>) {
-    info!("stopped painting!");
-
-    history.add(HistoryItem::Painted(brush_state.data.take().unwrap()));
-}
-
-fn paint(
-    brush: ResMut<BrushState>,
-    canvas: Res<Canvas>,
-    layers: Query<&Layer>,
-    mut images: ResMut<Assets<Image>>,
-) {
-    let layer = layers.get(canvas.layer_id).unwrap();
-    let image = images.get_mut(&layer.frames[&0]).unwrap();
-
-    if let Ok(pos) = canvas.cursor_position {
-        image.paint(pos, brush.color);
+    if input.just_pressed(MouseButton::Right) {
+        brush.color = color.secondary_color();
+        next_state.set(ToolState::Painting);
+    }
+    if input.just_released(MouseButton::Right) {
+        next_state.set(ToolState::Idle);
     }
 }

@@ -11,6 +11,43 @@ pub mod layer;
 pub mod timeline;
 pub mod tools;
 
+#[derive(Resource, Default)]
+pub struct ColorPalette {
+    palette: Vec<Color>,
+    color_state: ColorState,
+}
+
+impl ColorPalette {
+    pub fn primary_color(&self) -> Color {
+        match &self.color_state {
+            ColorState::Indexed { primary: index, .. } => self.palette[*index as usize],
+            ColorState::Color { primary: color, .. } => *color,
+        }
+    }
+    pub fn secondary_color(&self) -> Color {
+        match &self.color_state {
+            ColorState::Indexed { primary: index, .. } => self.palette[*index as usize],
+            ColorState::Color {
+                secondary: color, ..
+            } => *color,
+        }
+    }
+}
+
+pub enum ColorState {
+    Indexed { primary: u8, secondary: u8 },
+    Color { primary: Color, secondary: Color },
+}
+
+impl Default for ColorState {
+    fn default() -> Self {
+        ColorState::Color {
+            primary: Color::WHITE,
+            secondary: Color::NONE,
+        }
+    }
+}
+
 #[derive(States, Default, Debug, Hash, PartialEq, Eq, Clone)]
 pub enum ToolState {
     Painting,
@@ -35,6 +72,8 @@ impl History {
 
 pub enum HistoryItem {
     Painted(Vec<u8>),
+    Filled(Vec<u8>),
+    Selected(Vec<u8>),
 }
 
 pub fn undo_redo(
@@ -55,6 +94,7 @@ pub fn undo_redo(
                     info!("undo paint");
                     std::mem::swap(data, &mut image.data);
                 }
+                _ => unimplemented!(),
             }
             history.future.push(item);
         }
@@ -67,6 +107,7 @@ pub fn undo_redo(
                     info!("redo paint");
                     std::mem::swap(data, &mut image.data);
                 }
+                _ => unimplemented!(),
             }
             history.past.push(item);
         }
