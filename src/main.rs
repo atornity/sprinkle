@@ -3,9 +3,9 @@
 use bevy::{math::Vec3Swizzles, prelude::*};
 use sprinkle::{
     camera::{move_camera, setup_camera, zoom_camera},
-    canvas::{cursor_position, cursor_preview, setup_canvas, setup_cursor_preview},
+    canvas::{cursor_position, setup_canvas, shadow_paralax},
     tools::{
-        brush::{paint, start_painting, stop_painting},
+        brush::{brush_preview, paint, start_painting, stop_painting},
         BrushState, BucketState, Tool,
     },
     undo_redo, ColorPalette, ColorState, History, ToolState,
@@ -20,32 +20,25 @@ fn main() {
         .init_resource::<BucketState>()
         .init_resource::<History>()
         .init_resource::<ColorPalette>()
-        .add_systems(
-            Startup,
-            (
-                setup_canvas,
-                setup_camera,
-                setup_background,
-                setup_cursor_preview,
-            ),
-        )
+        .add_systems(Startup, (setup_canvas, setup_camera, setup_background))
         .add_systems(PreUpdate, cursor_position)
         .add_systems(
             Update,
             (
-                background_paralax,
+                // background_paralax,
+                shadow_paralax,
                 undo_redo,
                 change_tool,
                 move_camera,
                 zoom_camera,
             ),
         )
-        .add_systems(PostUpdate, cursor_preview)
         .add_systems(
             Update,
             (
                 paint_input.run_if(in_state(Tool::Brush)),
                 paint.run_if(in_state(ToolState::Painting)),
+                brush_preview.run_if(in_state(Tool::Brush).and_then(in_state(ToolState::Idle))),
             ),
         )
         .add_systems(OnEnter(ToolState::Painting), start_painting)
@@ -54,7 +47,7 @@ fn main() {
 }
 
 #[derive(Component)]
-struct Background;
+pub struct Background;
 
 fn setup_background(mut commands: Commands) {
     commands.spawn((

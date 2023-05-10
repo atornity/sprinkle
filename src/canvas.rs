@@ -88,32 +88,66 @@ pub fn setup_canvas(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         .spawn(LayerBundle {
             layer: Layer::new(image.clone(), None),
             transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
-            texture: image,
+            texture: image.clone(),
             ..Default::default()
         })
         .id();
 
     // insert canvas
     commands.insert_resource(Canvas::new(128, 128, layer_id));
+
+    // shadow
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: Color::rgba(0.0, 0.0, 0.0, 0.2),
+                ..Default::default()
+            },
+            texture: image,
+            transform: Transform {
+                translation: Vec3::new(0.0, 0.0, 0.5),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Shadow,
+    ));
 }
 
 #[derive(Component)]
-pub struct CursorPreview;
+pub struct Shadow;
 
-pub fn setup_cursor_preview(mut commands: Commands) {
-    commands.spawn((CursorPreview, SpriteBundle::default()));
-}
-
-pub fn cursor_preview(
-    mut cursor: Query<(&mut Transform, &mut Visibility), With<CursorPreview>>,
-    canvas: Res<Canvas>,
+pub fn shadow_paralax(
+    mut background: Query<&mut Transform, (With<Shadow>, Without<Camera2d>)>,
+    camera: Query<&Transform, With<Camera2d>>,
 ) {
-    let (mut trans, mut visibility) = cursor.single_mut();
+    let Transform {
+        translation: cam_pos,
+        ..
+    } = camera.single();
 
-    if canvas.cursor_on_canvas() {
-        *visibility = Visibility::Visible;
-        trans.translation = canvas.global_cursor_position().extend(100.0);
-    } else {
-        *visibility = Visibility::Hidden
-    }
+    let mut bg = background.single_mut();
+
+    bg.translation = (cam_pos.xy() * -0.04).extend(0.0);
 }
+
+// #[derive(Component)]
+// pub struct CursorPreview;
+
+// pub fn setup_cursor_preview(mut commands: Commands) {
+//     commands.spawn((CursorPreview, SpriteBundle::default()));
+// }
+
+// pub fn cursor_preview(
+//     mut cursor: Query<(&mut Transform, &mut Visibility), With<CursorPreview>>,
+//     canvas: Res<Canvas>,
+// ) {
+//     let (mut trans, mut visibility) = cursor.single_mut();
+
+//     if canvas.cursor_on_canvas() {
+//         *visibility = Visibility::Visible;
+//         trans.translation = canvas.global_cursor_position().extend(100.0);
+//     } else {
+//         *visibility = Visibility::Hidden
+//     }
+// }
