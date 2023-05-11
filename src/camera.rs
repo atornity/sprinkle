@@ -1,7 +1,10 @@
 use bevy::{
     input::mouse::{MouseMotion, MouseWheel},
+    math::Vec3Swizzles,
     prelude::*,
 };
+
+use crate::canvas::Canvas;
 
 pub fn setup_camera(mut commands: Commands) {
     commands.spawn(Camera2dBundle {
@@ -14,20 +17,21 @@ pub fn setup_camera(mut commands: Commands) {
 }
 
 pub fn zoom_camera(
-    mut query: Query<&mut OrthographicProjection>,
+    mut camera: Query<(&mut Transform, &mut OrthographicProjection)>,
     mut mouse_scroll: EventReader<MouseWheel>,
+    canvas: Res<Canvas>,
 ) {
-    let mut proj = query.single_mut();
+    let (mut trans, mut proj) = camera.single_mut();
     for ev in mouse_scroll.iter() {
-        // proj.scale += ev.y * -0.1;
-
-        let delta = ev.y * -0.1;
-
         let s = proj.scale;
-        proj.scale += delta * s;
 
+        let zoom_delta = ev.y * -0.1;
+
+        proj.scale += zoom_delta * s;
         proj.scale = proj.scale.clamp(0.01, 1.0);
-        println!("d: {} s: {}", ev.y, proj.scale);
+
+        let move_delta = (trans.translation.xy() - canvas.global_cursor_position()) * zoom_delta;
+        trans.translation += move_delta.extend(0.0);
     }
 }
 

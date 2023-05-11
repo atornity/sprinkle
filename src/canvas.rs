@@ -1,9 +1,10 @@
 use bevy::{math::Vec3Swizzles, prelude::*};
 
-pub enum CursorPosition {
-    Inside(Vec2),
-    Outside(Vec2),
-}
+use crate::{
+    image,
+    layer::{Layer, LayerBundle},
+    HEIGHT, WIDTH,
+};
 
 #[derive(Resource)]
 pub struct Canvas {
@@ -27,7 +28,16 @@ impl Canvas {
     }
 
     pub fn global_cursor_position(&self) -> Vec2 {
-        todo!()
+        let pos = match self.cursor_position {
+            Ok(pos) => pos,
+            Err(pos) => pos,
+        };
+
+        (pos - self.size() * 0.5) * Vec2::new(1.0, -1.0)
+    }
+
+    pub fn cursor_on_canvas(&self) -> bool {
+        self.cursor_position.is_ok()
     }
 
     pub fn in_bounds(&self, pos: Vec2) -> bool {
@@ -35,7 +45,7 @@ impl Canvas {
     }
 }
 
-pub fn process_cursor_position(
+pub fn cursor_position(
     mut canvas: ResMut<Canvas>,
     window: Query<&Window>,
     camera: Query<(&Transform, &OrthographicProjection)>,
@@ -70,13 +80,75 @@ pub fn process_cursor_position(
     }
 }
 
-#[derive(Resource, Default)]
-pub struct PaintTool {
-    pub color: Color,
+pub fn setup_canvas(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
+    // create image
+    let image = images.add(image(WIDTH, HEIGHT, Color::rgba(0.0, 0.0, 0.0, 0.0)));
+
+    // spawn layer
+    let layer_id = commands
+        .spawn(LayerBundle {
+            layer: Layer::new(image.clone(), None),
+            transform: Transform::from_translation(Vec3::new(0.0, 0.0, 1.0)),
+            texture: image.clone(),
+            ..Default::default()
+        })
+        .id();
+
+    // insert canvas
+    commands.insert_resource(Canvas::new(WIDTH, HEIGHT, layer_id));
+
+    // shadow
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: Color::rgba(0.0, 0.0, 0.0, 0.2),
+                ..Default::default()
+            },
+            texture: image,
+            transform: Transform {
+                translation: Vec3::new(0.0, 0.0, 0.5),
+                ..Default::default()
+            },
+            ..Default::default()
+        },
+        Shadow,
+    ));
 }
 
-impl PaintTool {
-    pub fn new() -> Self {
-        PaintTool::default()
-    }
+#[derive(Component)]
+pub struct Shadow;
+
+pub fn shadow_paralax(
+    mut background: Query<&mut Transform, (With<Shadow>, Without<Camera2d>)>,
+    camera: Query<&Transform, With<Camera2d>>,
+) {
+    let Transform {
+        translation: cam_pos,
+        ..
+    } = camera.single();
+
+    let mut bg = background.single_mut();
+
+    bg.translation = (cam_pos.xy() * -0.04).extend(0.0);
 }
+
+// #[derive(Component)]
+// pub struct CursorPreview;
+
+// pub fn setup_cursor_preview(mut commands: Commands) {
+//     commands.spawn((CursorPreview, SpriteBundle::default()));
+// }
+
+// pub fn cursor_preview(
+//     mut cursor: Query<(&mut Transform, &mut Visibility), With<CursorPreview>>,
+//     canvas: Res<Canvas>,
+// ) {
+//     let (mut trans, mut visibility) = cursor.single_mut();
+
+//     if canvas.cursor_on_canvas() {
+//         *visibility = Visibility::Visible;
+//         trans.translation = canvas.global_cursor_position().extend(100.0);
+//     } else {
+//         *visibility = Visibility::Hidden
+//     }
+// }
