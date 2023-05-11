@@ -4,17 +4,18 @@ use super::*;
 
 #[derive(Default)]
 pub enum BrushMode {
-    Pixel,
     #[default]
+    Pixel,
     Line,
 }
 
 #[derive(Resource, Default)]
 pub struct BrushState {
     pub buffer: Vec<u8>,
-    pub data: Option<Vec<u8>>,
+    data: Option<Vec<u8>>,
     pub color: Color,
-    pub last_position: Option<Vec2>,
+    start_position: Option<Vec2>,
+    last_position: Option<Vec2>,
     pub mode: BrushMode,
     is_cleared: bool,
 }
@@ -42,24 +43,60 @@ impl BrushState {
         self.is_cleared = true;
     }
 
-    pub fn paint_to_buffer(&mut self, position: Vec2, canvas_width: u32) {
-        let i: usize = (position.x as usize + position.y as usize * canvas_width as usize) * 4;
+    pub fn draw_point(&mut self, pos: IVec2, width: u32) {
+        self.is_cleared = false;
+
+        let idx: usize = (pos.x + pos.y * width as i32) as usize * 4;
+
         let color = if self.is_eraser() {
             [255, 255, 255, 255]
         } else {
             self.color.as_rgba_u8()
         };
 
-        self.buffer[i] = color[0];
-        self.buffer[i + 1] = color[1];
-        self.buffer[i + 2] = color[2];
-        self.buffer[i + 3] = color[3];
-
-        self.is_cleared = false;
+        self.buffer[idx] = color[0];
+        self.buffer[idx + 1] = color[1];
+        self.buffer[idx + 2] = color[2];
+        self.buffer[idx + 3] = color[3];
     }
 
-    fn make_pixel_perfect(&mut self) {
-        for i in 0..self.buffer.len() / 4 {}
+    fn draw_line(&mut self, width: u32, height: u32, mut start: IVec2, mut end: IVec2) {
+        self.is_cleared = false;
+
+        let color = if self.is_eraser() {
+            [255, 255, 255, 255]
+        } else {
+            self.color.as_rgba_u8()
+        };
+
+        let mut x = start.x;
+        let mut y = start.y;
+        let dx = (end.x - start.x).abs();
+        let dy = -(end.y - start.y).abs();
+        let sx = if start.x < end.x { 1 } else { -1 };
+        let sy = if start.y < end.y { 1 } else { -1 };
+        let mut err = dx + dy;
+        loop {
+            let idx = (y * width as i32 + x) as usize * 4;
+
+            self.buffer[idx] = color[0];
+            self.buffer[idx + 1] = color[1];
+            self.buffer[idx + 2] = color[2];
+            self.buffer[idx + 3] = color[3];
+
+            if x == end.x && y == end.y {
+                break;
+            }
+            let e2 = err * 2;
+            if e2 > dy {
+                err += dy;
+                x += sx;
+            }
+            if e2 < dx {
+                err += dx;
+                y += sy;
+            }
+        }
     }
 
     pub fn get_updated_buffer(&self) -> Option<Vec<u8>> {
@@ -96,6 +133,17 @@ impl BrushState {
         Some(new)
     }
 
+    fn clone_data_from_image(
+        &mut self,
+        canvas: &Res<Canvas>,
+        layers: &Query<&Layer>,
+        images: &mut ResMut<Assets<Image>>,
+    ) {
+        let layer = layers.get(canvas.layer_id).unwrap();
+        let image = images.get_mut(&layer.frames[&0]).unwrap();
+        self.data = Some(image.data.clone());
+    }
+
     fn apply_buffer_to_layer(
         &mut self,
         canvas: &Res<Canvas>,
@@ -118,15 +166,29 @@ pub fn start_painting(
     canvas: Res<Canvas>,
     layers: Query<&Layer>,
     mut images: ResMut<Assets<Image>>,
+    keyborad: Res<Input<KeyCode>>,
 ) {
     info!("started painting!");
 
-    let layer = layers.get(canvas.layer_id).unwrap();
-    let image = images.get_mut(&layer.frames[&0]).unwrap();
+    // set mode
+    if keyborad.pressed(KeyCode::LShift) {
+        brush.mode = BrushMode::Line;
+    } else {
+        brush.mode = BrushMode::Pixel;
+    }
 
-    brush.data = Some(image.data.clone());
+    brush.clone_data_from_image(&canvas, &layers, &mut images);
+    if !brush.is_cleared {
+        brush.clear_buffer(canvas.width, canvas.height);
+    }
+    if let Ok(pos) = canvas.cursor_position {
+        brush.start_position = Some(pos);
+        brush.draw_point(pos.as_ivec2(), canvas.width);
+        brush.apply_buffer_to_layer(&canvas, &layers, &mut images);
+    } else {
+        brush.start_position = None;
+    }
     brush.last_position = canvas.cursor_position.ok();
-    brush.clear_buffer(canvas.width, canvas.height);
 }
 
 pub fn stop_painting(mut brush: ResMut<BrushState>, mut history: ResMut<History>) {
@@ -136,43 +198,59 @@ pub fn stop_painting(mut brush: ResMut<BrushState>, mut history: ResMut<History>
     brush.last_position = None;
 }
 
-pub fn paint(
+pub fn painting(
     mut brush: ResMut<BrushState>,
     canvas: Res<Canvas>,
     layers: Query<&Layer>,
     mut images: ResMut<Assets<Image>>,
+    keyborad: Res<Input<KeyCode>>,
+    mut changed_to_pixel: Local<bool>,
+    mut changed_to_line: Local<bool>,
 ) {
-    let layer = layers.get(canvas.layer_id).unwrap();
-    let image = images.get_mut(&layer.frames[&0]).unwrap();
+    // change mode
+    if keyborad.just_pressed(KeyCode::LShift) {
+        info!("switched to line mode");
+        *changed_to_line = true;
+
+        brush.clear_buffer(canvas.width, canvas.height);
+        brush.apply_buffer_to_layer(&canvas, &layers, &mut images);
+
+        brush.mode = BrushMode::Line;
+    } else if keyborad.just_released(KeyCode::LShift) {
+        *changed_to_pixel = true;
+
+        brush.mode = BrushMode::Pixel;
+        info!("switched to pixel mode");
+    }
 
     if let Ok(next_pos) = canvas.cursor_position {
-        if let Some(mut pos) = brush.last_position {
-            if pos.as_uvec2() == next_pos.as_uvec2() {
+        if let Some(last_pos) = brush.last_position {
+            if last_pos.as_uvec2() == next_pos.as_uvec2() && !*changed_to_line {
                 return;
             }
 
-            if brush.is_line_mode() {
+            let last_pos = if brush.is_pixel_mode() {
+                if *changed_to_pixel {
+                    brush.clear_buffer(canvas.width, canvas.height);
+                    brush.apply_buffer_to_layer(&canvas, &layers, &mut images);
+                }
+                last_pos
+            } else {
                 brush.clear_buffer(canvas.width, canvas.height);
-            }
+                brush.start_position.unwrap_or(last_pos)
+            };
 
-            let dir = (next_pos - pos).clamp_length_max(1.0);
-            let len = dir.length();
-
-            while pos.distance(next_pos) > len {
-                pos += dir;
-                // image.paint(pos, brush.color);
-                brush.paint_to_buffer(pos, canvas.width);
-            }
+            brush.draw_line(
+                canvas.width,
+                canvas.height,
+                last_pos.as_ivec2(),
+                next_pos.as_ivec2(),
+            );
+            brush.apply_buffer_to_layer(&canvas, &layers, &mut images);
+            *changed_to_line = false;
+            *changed_to_pixel = false;
         }
-        // image.paint(next_pos, brush.color);
-        brush.paint_to_buffer(next_pos, canvas.width);
-
-        if brush.is_pixel_mode() {
-            brush.last_position = Some(next_pos);
-        }
-
-        // image.data = brush.get_updated_buffer();
-        brush.apply_buffer_to_layer(&canvas, &layers, &mut images);
+        brush.last_position = Some(next_pos);
     } else {
         brush.last_position = None;
     }
@@ -190,7 +268,7 @@ pub fn brush_preview(
                 return;
             }
             brush.clear_buffer(canvas.width, canvas.height);
-            brush.paint_to_buffer(pos, canvas.width);
+            brush.draw_point(pos.as_ivec2(), canvas.width);
             brush.apply_buffer_to_layer(&canvas, &layers, &mut images);
         }
         brush.last_position = Some(pos);

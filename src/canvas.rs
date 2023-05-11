@@ -3,6 +3,7 @@ use bevy::{math::Vec3Swizzles, prelude::*};
 use crate::{
     image,
     layer::{Layer, LayerBundle},
+    HEIGHT, WIDTH,
 };
 
 #[derive(Resource)]
@@ -81,7 +82,7 @@ pub fn cursor_position(
 
 pub fn setup_canvas(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
     // create image
-    let image = images.add(image(128, 128, Color::rgba(0.0, 0.0, 0.0, 0.0)));
+    let image = images.add(image(WIDTH, HEIGHT, Color::rgba(0.0, 0.0, 0.0, 0.0)));
 
     // spawn layer
     let layer_id = commands
@@ -94,7 +95,7 @@ pub fn setup_canvas(mut commands: Commands, mut images: ResMut<Assets<Image>>) {
         .id();
 
     // insert canvas
-    commands.insert_resource(Canvas::new(128, 128, layer_id));
+    commands.insert_resource(Canvas::new(WIDTH, HEIGHT, layer_id));
 
     // shadow
     commands.spawn((

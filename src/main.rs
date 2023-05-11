@@ -5,10 +5,11 @@ use sprinkle::{
     camera::{move_camera, setup_camera, zoom_camera},
     canvas::{cursor_position, setup_canvas, shadow_paralax},
     tools::{
-        brush::{brush_preview, paint, start_painting, stop_painting},
+        brush::{brush_preview, painting, start_painting, stop_painting, BrushMode},
+        bucket::{filling, start_filling, stop_filling},
         BrushState, BucketState, Tool,
     },
-    undo_redo, ColorPalette, ColorState, History, ToolState,
+    undo_redo, ColorPalette, ColorState, History, ToolState, HEIGHT, WIDTH,
 };
 
 fn main() {
@@ -25,7 +26,6 @@ fn main() {
         .add_systems(
             Update,
             (
-                // background_paralax,
                 shadow_paralax,
                 undo_redo,
                 change_tool,
@@ -36,13 +36,18 @@ fn main() {
         .add_systems(
             Update,
             (
-                paint_input.run_if(in_state(Tool::Brush)),
-                paint.run_if(in_state(ToolState::Painting)),
-                brush_preview.run_if(in_state(Tool::Brush).and_then(in_state(ToolState::Idle))),
+                brush_input.run_if(in_state(Tool::Brush)),
+                painting.run_if(in_state(ToolState::Painting)),
+                bucket_input.run_if(in_state(Tool::Bucket)),
+                filling.run_if(in_state(ToolState::Filling)),
+                // brush_preview.run_if(in_state(Tool::Brush).and_then(in_state(ToolState::Idle))),
             ),
         )
+        // transitions
         .add_systems(OnEnter(ToolState::Painting), start_painting)
         .add_systems(OnExit(ToolState::Painting), stop_painting)
+        .add_systems(OnEnter(ToolState::Filling), start_filling)
+        .add_systems(OnExit(ToolState::Filling), stop_filling)
         .run();
 }
 
@@ -57,7 +62,7 @@ fn setup_background(mut commands: Commands) {
                 ..Default::default()
             },
             transform: Transform {
-                scale: Vec3::new(128.0, 128.0, 1.0),
+                scale: Vec3::new(WIDTH as f32, HEIGHT as f32, 1.0),
                 translation: Vec3::new(0.0, 0.0, 0.0),
                 ..Default::default()
             },
@@ -65,20 +70,6 @@ fn setup_background(mut commands: Commands) {
         },
         Background,
     ));
-}
-
-fn background_paralax(
-    mut background: Query<&mut Transform, (With<Background>, Without<Camera2d>)>,
-    camera: Query<&Transform, With<Camera2d>>,
-) {
-    let Transform {
-        translation: cam_pos,
-        ..
-    } = camera.single();
-
-    let mut bg = background.single_mut();
-
-    bg.translation = (cam_pos.xy() * -0.1).extend(0.0);
 }
 
 fn change_tool(input: Res<Input<KeyCode>>, mut next_state: ResMut<NextState<Tool>>) {
@@ -96,24 +87,42 @@ fn change_tool(input: Res<Input<KeyCode>>, mut next_state: ResMut<NextState<Tool
     }
 }
 
-fn paint_input(
-    input: Res<Input<MouseButton>>,
+fn brush_input(
+    mouse: Res<Input<MouseButton>>,
+    keyborad: Res<Input<KeyCode>>,
     mut next_state: ResMut<NextState<ToolState>>,
     color: Res<ColorPalette>,
     mut brush: ResMut<BrushState>,
 ) {
-    if input.just_pressed(MouseButton::Left) {
+    if mouse.just_pressed(MouseButton::Left) {
         brush.color = color.primary_color();
         next_state.set(ToolState::Painting);
     }
-    if input.just_released(MouseButton::Left) {
+    if mouse.just_released(MouseButton::Left) {
         next_state.set(ToolState::Idle);
     }
-    if input.just_pressed(MouseButton::Right) {
+
+    if mouse.just_pressed(MouseButton::Right) {
         brush.color = color.secondary_color();
         next_state.set(ToolState::Painting);
     }
-    if input.just_released(MouseButton::Right) {
+    if mouse.just_released(MouseButton::Right) {
         next_state.set(ToolState::Idle);
+    }
+}
+
+fn bucket_input(
+    input: Res<Input<MouseButton>>,
+    mut next_state: ResMut<NextState<ToolState>>,
+    color: Res<ColorPalette>,
+    mut bucket: ResMut<BucketState>,
+) {
+    if input.just_pressed(MouseButton::Left) {
+        bucket.fill_color = color.primary_color();
+        next_state.set(ToolState::Filling);
+    }
+    if input.just_pressed(MouseButton::Right) {
+        bucket.fill_color = color.secondary_color();
+        next_state.set(ToolState::Filling);
     }
 }

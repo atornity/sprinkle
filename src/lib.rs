@@ -11,6 +11,9 @@ pub mod layer;
 pub mod timeline;
 pub mod tools;
 
+pub const WIDTH: u32 = 512;
+pub const HEIGHT: u32 = 512;
+
 #[derive(Resource, Default)]
 pub struct ColorPalette {
     palette: Vec<Color>,
@@ -94,6 +97,10 @@ pub fn undo_redo(
                     info!("undo paint");
                     std::mem::swap(data, &mut image.data);
                 }
+                HistoryItem::Filled(data) => {
+                    info!("undo fill");
+                    std::mem::swap(data, &mut image.data);
+                }
                 _ => unimplemented!(),
             }
             history.future.push(item);
@@ -105,6 +112,10 @@ pub fn undo_redo(
             match &mut item {
                 HistoryItem::Painted(data) => {
                     info!("redo paint");
+                    std::mem::swap(data, &mut image.data);
+                }
+                HistoryItem::Filled(data) => {
+                    info!("undo fill");
                     std::mem::swap(data, &mut image.data);
                 }
                 _ => unimplemented!(),
@@ -148,8 +159,7 @@ pub fn image(width: u32, height: u32, color: Color) -> Image {
 
 pub trait ImagePaint {
     fn paint(&mut self, pos: Vec2, color: Color);
-    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8]; // TODO: remove this
-    fn color_at_pos(&self, pos: Vec2) -> Color;
+    fn color_at_pos(&self, pos: IVec2) -> Color;
 }
 
 impl ImagePaint for Image {
@@ -167,15 +177,8 @@ impl ImagePaint for Image {
         self.data[i + 3] = color[3];
     }
 
-    fn get_pixel_mut(&mut self, pos: Vec2) -> &mut [u8] {
-        let i = pos.x as u32 + pos.y as u32 * self.size().x as u32;
-        let i = i as usize * 4;
-
-        &mut self.data[i..(i + 4)]
-    }
-
-    fn color_at_pos(&self, pos: Vec2) -> Color {
-        let i = (pos.x as usize + pos.y as usize * self.size().x as usize) * 4;
+    fn color_at_pos(&self, pos: IVec2) -> Color {
+        let i = (pos.y * self.size().x as i32 + pos.x) as usize * 4;
         let [r, g, b, a] = &self.data[i..(i + 4)] else { unreachable!() };
         Color::rgba_u8(*r, *g, *b, *a)
     }
@@ -183,4 +186,26 @@ impl ImagePaint for Image {
 
 pub fn color_distance(a: Color, b: Color) -> f32 {
     (a.r() - b.r()).abs() + (a.g() - b.g()).abs() + (a.b() - b.b()).abs() + (a.a() - b.a()).abs()
+}
+
+pub fn compare_color(a: [u8; 4], b: [u8; 4]) {
+    todo!()
+}
+
+pub fn in_img_bounds(pos: IVec2, width: u32, height: u32) -> bool {
+    pos.x >= 0 && pos.x < width as i32 && pos.y >= 0 && pos.y < height as i32
+}
+
+pub fn img_pos_to_index(pos: IVec2, width: u32) -> usize {
+    (pos.y * width as i32 + pos.x) as usize * 4
+}
+
+pub fn index_to_img_pos(index: usize, width: u32) -> IVec2 {
+    UVec2::new(index as u32 % width, index as u32 / width).as_ivec2()
+}
+
+pub fn color_at_img_pos(pos: IVec2, width: u32, image: &[u8]) -> Color {
+    let idx = img_pos_to_index(pos, width);
+    let c = &image[idx..idx + 3];
+    Color::rgba_u8(c[0], c[1], c[2], c[3])
 }
