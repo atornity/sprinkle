@@ -16,8 +16,8 @@ pub const HEIGHT: u32 = 512;
 
 #[derive(Resource, Default)]
 pub struct ColorPalette {
-    palette: Vec<Color>,
-    color_state: ColorState,
+    pub palette: Vec<Color>,
+    pub color_state: ColorState,
 }
 
 impl ColorPalette {
@@ -35,11 +35,21 @@ impl ColorPalette {
             } => *color,
         }
     }
+    pub fn set_primary(&mut self, index: u8) {
+        match &mut self.color_state {
+            ColorState::Indexed { primary, .. } => *primary = index,
+            ColorState::Color { primary, .. } => *primary = self.palette[index as usize],
+        }
+    }
 }
 
 pub enum ColorState {
     Indexed { primary: u8, secondary: u8 },
     Color { primary: Color, secondary: Color },
+}
+
+impl ColorState {
+    pub fn set_primary(&mut self, color: Color) {}
 }
 
 impl Default for ColorState {

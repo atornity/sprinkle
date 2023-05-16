@@ -20,7 +20,11 @@ fn main() {
         .init_resource::<BrushState>()
         .init_resource::<BucketState>()
         .init_resource::<History>()
-        .init_resource::<ColorPalette>()
+        // .init_resource::<ColorPalette>()
+        .insert_resource(ColorPalette {
+            palette: vec![Color::WHITE, Color::PINK, Color::rgba(0.2, 0.1, 0.6, 0.5)],
+            color_state: ColorState::default(),
+        })
         .add_systems(Startup, (setup_canvas, setup_camera, setup_background))
         .add_systems(PreUpdate, cursor_position)
         .add_systems(
@@ -29,6 +33,7 @@ fn main() {
                 shadow_paralax,
                 undo_redo,
                 change_tool,
+                change_color,
                 move_camera,
                 zoom_camera,
             ),
@@ -72,6 +77,18 @@ fn setup_background(mut commands: Commands) {
     ));
 }
 
+fn change_color(input: Res<Input<KeyCode>>, mut palette: ResMut<ColorPalette>) {
+    if input.just_pressed(KeyCode::Key1) {
+        palette.set_primary(0);
+    }
+    if input.just_pressed(KeyCode::Key2) {
+        palette.set_primary(1);
+    }
+    if input.just_pressed(KeyCode::Key3) {
+        palette.set_primary(2);
+    }
+}
+
 fn change_tool(input: Res<Input<KeyCode>>, mut next_state: ResMut<NextState<Tool>>) {
     if input.just_pressed(KeyCode::B) {
         next_state.set(Tool::Brush);
@@ -89,7 +106,6 @@ fn change_tool(input: Res<Input<KeyCode>>, mut next_state: ResMut<NextState<Tool
 
 fn brush_input(
     mouse: Res<Input<MouseButton>>,
-    keyborad: Res<Input<KeyCode>>,
     mut next_state: ResMut<NextState<ToolState>>,
     color: Res<ColorPalette>,
     mut brush: ResMut<BrushState>,

@@ -9,6 +9,14 @@ pub enum BrushMode {
     Line,
 }
 
+#[derive(Default)]
+pub enum BlendMode {
+    #[default]
+    Replace,
+    Blend,
+    Glaze,
+}
+
 #[derive(Resource, Default)]
 pub struct BrushState {
     pub buffer: Vec<u8>,
@@ -46,7 +54,7 @@ impl BrushState {
     pub fn draw_point(&mut self, pos: IVec2, width: u32) {
         self.is_cleared = false;
 
-        let idx: usize = (pos.x + pos.y * width as i32) as usize * 4;
+        let idx = ((pos.x + pos.y * width as i32) * 4) as usize;
 
         let color = if self.is_eraser() {
             [255, 255, 255, 255]
@@ -60,7 +68,7 @@ impl BrushState {
         self.buffer[idx + 3] = color[3];
     }
 
-    fn draw_line(&mut self, width: u32, height: u32, mut start: IVec2, mut end: IVec2) {
+    fn draw_line(&mut self, width: u32, start: IVec2, end: IVec2) {
         self.is_cleared = false;
 
         let color = if self.is_eraser() {
@@ -71,10 +79,13 @@ impl BrushState {
 
         let mut x = start.x;
         let mut y = start.y;
+
         let dx = (end.x - start.x).abs();
         let dy = -(end.y - start.y).abs();
+
         let sx = if start.x < end.x { 1 } else { -1 };
         let sy = if start.y < end.y { 1 } else { -1 };
+
         let mut err = dx + dy;
         loop {
             let idx = (y * width as i32 + x) as usize * 4;
@@ -99,33 +110,37 @@ impl BrushState {
         }
     }
 
+    fn draw_line_thickness(&mut self, width: u32, start: IVec2, end: IVec2, thickness: f32) {
+        todo!()
+    }
+
     pub fn get_updated_buffer(&self) -> Option<Vec<u8>> {
         let mut new = Vec::with_capacity(self.buffer.len());
 
-        for ([r_a, g_a, b_a, a_a], [r_b, g_b, b_b, a_b]) in self
+        for ([r1, g1, b1, a1], [r2, g2, b2, a2]) in self
             .data
             .as_ref()?
             .array_chunks::<4>()
             .zip(self.buffer.array_chunks::<4>())
         {
             if self.is_eraser() {
-                if *a_b == 255 {
+                if *a2 == 255 {
                     new.extend([0, 0, 0, 0]);
                 } else {
-                    new.extend([r_a, g_a, b_a, a_a]);
+                    new.extend([r1, g1, b1, a1]);
                 }
             } else {
-                let s = *b_b as f32 / 255.0;
+                let s = *a2 as f32 / 255.0;
 
                 let col_v = Vec3::lerp(
-                    Vec3::new(*r_a as f32, *g_a as f32, *b_a as f32),
-                    Vec3::new(*r_b as f32, *g_b as f32, *b_b as f32),
+                    Vec3::new(*r1 as f32, *g1 as f32, *b1 as f32),
+                    Vec3::new(*r2 as f32, *g2 as f32, *b2 as f32),
                     s,
                 );
 
                 let (r, g, b) = (col_v.x as u8, col_v.y as u8, col_v.z as u8);
 
-                let a = a_a.checked_add(*a_b).unwrap_or(u8::MAX);
+                let a = a1.checked_add(*a2).unwrap_or(u8::MAX);
 
                 new.extend([r, g, b, a]);
             }
@@ -240,12 +255,7 @@ pub fn painting(
                 brush.start_position.unwrap_or(last_pos)
             };
 
-            brush.draw_line(
-                canvas.width,
-                canvas.height,
-                last_pos.as_ivec2(),
-                next_pos.as_ivec2(),
-            );
+            brush.draw_line(canvas.width, last_pos.as_ivec2(), next_pos.as_ivec2());
             brush.apply_buffer_to_layer(&canvas, &layers, &mut images);
             *changed_to_line = false;
             *changed_to_pixel = false;
